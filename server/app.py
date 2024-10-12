@@ -18,18 +18,20 @@ api = Api(app)
 
 
 class Plants(Resource):
-
     def get(self):
+        """Get a list of all plants."""
         plants = [plant.to_dict() for plant in Plant.query.all()]
         return make_response(jsonify(plants), 200)
 
     def post(self):
+        """Create a new plant."""
         data = request.get_json()
 
         new_plant = Plant(
             name=data['name'],
             image=data['image'],
             price=data['price'],
+            is_in_stock=data.get('is_in_stock', True),  # Default to True if not provided
         )
 
         db.session.add(new_plant)
@@ -38,16 +40,34 @@ class Plants(Resource):
         return make_response(new_plant.to_dict(), 201)
 
 
-api.add_resource(Plants, '/plants')
-
-
 class PlantByID(Resource):
-
     def get(self, id):
-        plant = Plant.query.filter_by(id=id).first().to_dict()
-        return make_response(jsonify(plant), 200)
+        """Get a plant by ID."""
+        plant = Plant.query.get_or_404(id)  # This will return 404 if not found
+        return make_response(jsonify(plant.to_dict()), 200)
+
+    def patch(self, id):
+        """Update a plant's in_stock status by ID."""
+        plant = Plant.query.get_or_404(id)
+        data = request.get_json()
+
+        if 'is_in_stock' in data:
+            plant.is_in_stock = data['is_in_stock']
+            db.session.commit()
+            return make_response(jsonify(plant.to_dict()), 200)
+
+        return make_response(jsonify({"message": "Invalid request"}), 400)
+
+    def delete(self, id):
+        """Delete a plant by ID."""
+        plant = Plant.query.get_or_404(id)
+        db.session.delete(plant)
+        db.session.commit()
+        return '', 204  # No content
 
 
+# Add the resource routes
+api.add_resource(Plants, '/plants')
 api.add_resource(PlantByID, '/plants/<int:id>')
 
 
